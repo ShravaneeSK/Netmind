@@ -6,3 +6,8 @@ __pycache__/
 *.joblib
 .ipynb_checkpoints/
 .DS_Store
+secrets.h
+*.env
+.env.*
+!.env.example
+ 
