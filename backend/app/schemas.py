@@ -47,3 +47,16 @@ class PacketFeaturesOut(PacketFeaturesIn):
     received_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+    
+class MergedOut(TelemetryOut):
+    """One ESP32 reading with the nearest packet-feature window attached."""
+
+    packet_matched: bool
+    packet_gap_s: float | None = None
+    dns_response_ms: float | None = None
+    dns_fail_count: int | None = None
+    tcp_retrans: int | None = None
+    dhcp_offer_ms: float | None = None
+    icmp_unreach: int | None = None
+    pkt_rate: float | None = None
+    byte_rate: float | None = None

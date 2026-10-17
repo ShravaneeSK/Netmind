@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .database import Base, engine, get_db
+from .merge import merged_records
 
 Base.metadata.create_all(bind=engine)
 
@@ -59,3 +60,9 @@ def list_packet_features(
         .limit(limit)
         .all()
     )
+    
+
+
+@app.get("/merged", response_model=list[schemas.MergedOut])
+def list_merged(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db)):
+    return merged_records(db, limit)
