@@ -10,4 +10,6 @@ secrets.h
 *.env
 .env.*
 !.env.example
+*.pcap
+*.pcapng
  
