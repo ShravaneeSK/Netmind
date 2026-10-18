@@ -12,4 +12,5 @@ secrets.h
 !.env.example
 *.pcap
 *.pcapng
+ml/data/sim_*.csv
  
