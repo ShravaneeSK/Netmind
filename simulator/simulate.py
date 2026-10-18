@@ -120,6 +120,11 @@ def main():
     parser.add_argument("--count", type=int, default=20, help="readings per fault")
     parser.add_argument("--interval", type=float, default=0.5, help="seconds between readings")
     parser.add_argument("--url", default="http://127.0.0.1:8000")
+    parser.add_argument(
+        "--no-packets",
+        action="store_true",
+        help="send telemetry only (a real collector supplies packet features)",
+    )
     args = parser.parse_args()
 
     out_dir = Path(__file__).resolve().parents[1] / "ml" / "data"
@@ -139,8 +144,9 @@ def main():
             for _ in range(args.count):
                 tel, pkt = generate(fault)
                 try:
-                    r = requests.post(f"{args.url}/packet-features", json=pkt, timeout=5)
-                    r.raise_for_status()
+                    if not args.no_packets:
+                        r = requests.post(f"{args.url}/packet-features", json=pkt, timeout=5)
+                        r.raise_for_status()
                     r = requests.post(f"{args.url}/telemetry", json=tel, timeout=5)
                     r.raise_for_status()
                     writer.writerow([r.json()["id"], fault, datetime.now().isoformat()])
@@ -157,4 +163,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
