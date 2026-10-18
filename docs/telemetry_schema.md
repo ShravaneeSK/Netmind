@@ -30,7 +30,7 @@ NetMind has two data sources. The backend merges them into one record per
 | dns_response_ms | DNS query-to-response time on the wire | ms (-1 = no reply) |
 | dns_fail_count | DNS errors or unanswered queries | count |
 | tcp_retrans | TCP retransmissions | count |
-| dhcp_offer_ms | DHCP Discover-to-Offer time | ms (-1 = no offer) |
+| dhcp_offer_ms | DHCP request-to-reply time on the wire | ms (0 = no DHCP exchange seen, -1 = no reply) |
 | icmp_unreach | ICMP "unreachable" messages | count |
 | pkt_rate | Packets per second | pkts/s |
 | byte_rate | Bytes per second | B/s |
