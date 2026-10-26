@@ -66,3 +66,7 @@ def list_packet_features(
 @app.get("/merged", response_model=list[schemas.MergedOut])
 def list_merged(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db)):
     return merged_records(db, limit)
+
+from .predict_routes import router as predict_router  # noqa: E402
+
+app.include_router(predict_router)
