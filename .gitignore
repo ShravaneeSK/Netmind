@@ -14,3 +14,5 @@ secrets.h
 *.pcapng
 ml/data/sim_*.csv
  
+
+ml/reports/sim_*
