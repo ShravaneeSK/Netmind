@@ -1,4 +1,4 @@
-"""NetMind simulator: fake ESP32 telemetry + packet features for pipeline testing.
+﻿"""NetMind simulator: fake ESP32 telemetry + packet features for pipeline testing.
 
 Simulated data is for testing code only. It must never be used for reported results.
 """
@@ -111,6 +111,11 @@ def generate(fault):
             tel.update(dhcp_clients=0, dhcp_leases_active=0, client_rssi_avg=-1)
         pkt.update(dhcp_offer_ms=-1, pkt_rate=n(15, 5, 1), byte_rate=n(3000, 1000, 200))
 
+    # Calibrated to what the real collector measures on this PC (about 15 packets/s idle)
+    pkt["pkt_rate"] = round(pkt["pkt_rate"] * 0.125, 2)
+    pkt["byte_rate"] = round(pkt["byte_rate"] * 0.055, 2)
+    if pkt["dhcp_offer_ms"] != -1:
+        pkt["dhcp_offer_ms"] = 0  # 0 = no DHCP exchange seen, as the real collector reports
     return tel, pkt
 
 
