@@ -16,6 +16,9 @@ These signatures are starting hypotheses. In Stage 4 you will check them
 against real measurements and adjust them if the data says otherwise.
 
 # Severity levels
-Low | Medium | High | Critical
+None (no fault) | Low | Medium | High | Critical
+
+Severity is rule-based (see backend/app/severity.py): a base level per fault class,
+raised one step when measurements cross a threshold.
 
 The rules that map a fault to a severity level are defined in Stage 5.
