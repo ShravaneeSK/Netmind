@@ -16,3 +16,5 @@ ml/data/sim_*.csv
  
 
 ml/reports/sim_*
+
+rag/store/
