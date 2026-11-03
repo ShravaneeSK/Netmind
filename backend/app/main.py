@@ -70,3 +70,13 @@ def list_merged(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_
 from .predict_routes import router as predict_router  # noqa: E402
 
 app.include_router(predict_router)
+
+
+from .diagnose_routes import router as diagnose_router  # noqa: E402
+
+app.include_router(diagnose_router)
+
+
+from .diagnose_routes import router as diagnose_router  # noqa: E402
+
+app.include_router(diagnose_router)

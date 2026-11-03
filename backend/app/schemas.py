@@ -81,3 +81,31 @@ class StoredPredictionOut(BaseModel):
     severity: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DiagnosisOut(BaseModel):
+    telemetry_id: int
+    fault_label: str
+    severity: str
+    confidence: float
+    is_anomaly: bool
+    top_classes: dict[str, float]
+    explanation: str
+    verified: bool
+    problems: list[str]
+    sources: list[str]
+    trace: list[str]
+
+
+class StoredDiagnosisOut(BaseModel):
+    id: int
+    telemetry_id: int
+    created_at: datetime
+    fault_label: str
+    severity: str
+    confidence: float
+    is_anomaly: bool
+    verified: bool
+    explanation: str
+
+    model_config = ConfigDict(from_attributes=True)

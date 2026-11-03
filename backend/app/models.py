@@ -62,3 +62,22 @@ class Prediction(Base):
     anomaly_score = Column(Float, nullable=True)
     fault_label = Column(String(30), nullable=True)
     severity = Column(String(10), nullable=True)
+
+from sqlalchemy import Boolean, Text  # noqa: E402
+
+
+class Diagnosis(Base):
+    """Stored output of the diagnosis agent for one telemetry reading."""
+
+    __tablename__ = "diagnoses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    telemetry_id = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    fault_label = Column(String(30), nullable=False)
+    severity = Column(String(10), nullable=False)
+    confidence = Column(Float, nullable=False)
+    is_anomaly = Column(Boolean, nullable=False)
+    verified = Column(Boolean, nullable=False)
+    explanation = Column(Text, nullable=False)
+    sources = Column(Text, nullable=True)
