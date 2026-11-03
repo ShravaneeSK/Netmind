@@ -90,3 +90,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+from .live_routes import router as live_router  # noqa: E402
+
+app.include_router(live_router)
