@@ -60,3 +60,24 @@ class MergedOut(TelemetryOut):
     icmp_unreach: int | None = None
     pkt_rate: float | None = None
     byte_rate: float | None = None
+
+class PredictionOut(BaseModel):
+    telemetry_id: int
+    fault_label: str
+    confidence: float
+    top_classes: dict[str, float]
+    is_anomaly: bool
+    anomaly_score: float
+    severity: str
+    reasons: list[str]
+
+
+class StoredPredictionOut(BaseModel):
+    id: int
+    telemetry_id: int
+    created_at: datetime
+    anomaly_score: float | None = None
+    fault_label: str | None = None
+    severity: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
