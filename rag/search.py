@@ -46,3 +46,16 @@ def search(query, n=3, fault=None, exclude_glossary=False):
         }
         for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0])
     ]
+
+
+SECTION_ORDER = ["signature", "likely causes", "how to check", "how to fix"]
+
+
+def notes_for(fault):
+    """Return the stored sections of one fault class in reading order (no similarity search)."""
+    res = _collection().get(where={"fault": fault})
+    items = list(zip(res["metadatas"], res["documents"]))
+    items.sort(
+        key=lambda m: SECTION_ORDER.index(m[0]["section"]) if m[0]["section"] in SECTION_ORDER else 99
+    )
+    return [{"section": m["section"], "text": d} for m, d in items]
