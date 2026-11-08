@@ -3,6 +3,18 @@
 const API = 'http://127.0.0.1:8000'
 const POLL_MS = 5000
 
+const FAULTS = [
+  'normal',
+  'weak_signal',
+  'congestion',
+  'dns_failure',
+  'gateway_failure',
+  'internet_failure',
+  'device_overload',
+  'intermittent_loss',
+  'dhcp_failure',
+]
+
 const SEVERITY_STYLE = {
   None: 'bg-emerald-600',
   Low: 'bg-sky-600',
@@ -37,8 +49,10 @@ function SeverityBadge({ severity }) {
 }
 
 export default function App() {
+  const [view, setView] = useState('live')
   const [latest, setLatest] = useState(null)
   const [rows, setRows] = useState([])
+  const [history, setHistory] = useState([])
   const [error, setError] = useState(null)
   const [updated, setUpdated] = useState(null)
 
@@ -46,6 +60,7 @@ export default function App() {
   const [diag, setDiag] = useState(null)
   const [diagLoading, setDiagLoading] = useState(false)
   const [diagError, setDiagError] = useState(null)
+  const [demoBusy, setDemoBusy] = useState(null)
   const requestCounter = useRef(0)
 
   const load = useCallback(async () => {
@@ -66,11 +81,28 @@ export default function App() {
     }
   }, [])
 
+  const loadHistory = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/diagnoses?limit=50`)
+      if (!r.ok) throw new Error(`diagnoses: HTTP ${r.status}`)
+      setHistory(await r.json())
+    } catch (e) {
+      setError(e.message === 'Failed to fetch' ? 'Backend not reachable' : e.message)
+    }
+  }, [])
+
   useEffect(() => {
     load()
     const timer = setInterval(load, POLL_MS)
     return () => clearInterval(timer)
   }, [load])
+
+  useEffect(() => {
+    if (view !== 'history') return undefined
+    loadHistory()
+    const timer = setInterval(loadHistory, POLL_MS)
+    return () => clearInterval(timer)
+  }, [view, loadHistory])
 
   const diagnose = useCallback(async (id) => {
     const mine = ++requestCounter.current
@@ -95,6 +127,35 @@ export default function App() {
     }
   }, [])
 
+  const showStored = (item) => {
+    requestCounter.current += 1
+    setSelected(item.telemetry_id)
+    setDiagError(null)
+    setDiagLoading(false)
+    setDiag({ ...item, sources: [], stored: true })
+  }
+
+  const runDemo = async (fault) => {
+    setDemoBusy(fault)
+    try {
+      const r = await fetch(`${API}/demo/${fault}`, { method: 'POST' })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `HTTP ${r.status}`)
+      }
+      const data = await r.json()
+      await load()
+      await diagnose(data.telemetry_id)
+      if (view === 'history') await loadHistory()
+    } catch (e) {
+      setSelected(null)
+      setDiag(null)
+      setDiagError(e.message === 'Failed to fetch' ? 'Backend not reachable' : e.message)
+    } finally {
+      setDemoBusy(null)
+    }
+  }
+
   const pred = latest?.prediction
   const rec = latest?.record
 
@@ -110,11 +171,43 @@ export default function App() {
         </span>
       </header>
 
-      {!rec && !error && (
+      <nav className="mt-4 flex gap-2">
+        {['live', 'history'].map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`rounded px-4 py-1 text-sm capitalize ${
+              view === v ? 'bg-sky-600' : 'bg-slate-800 hover:bg-slate-700'
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </nav>
+
+      <section className="mt-4 rounded-lg bg-slate-800 p-3">
+        <div className="text-xs uppercase tracking-wide text-slate-400">
+          Demo: inject one simulated fault (not real measurements)
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {FAULTS.map((f) => (
+            <button
+              key={f}
+              disabled={demoBusy !== null}
+              onClick={() => runDemo(f)}
+              className="rounded bg-slate-700 px-2 py-1 text-xs hover:bg-slate-600 disabled:opacity-50"
+            >
+              {demoBusy === f ? 'working...' : f.replaceAll('_', ' ')}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {view === 'live' && !rec && !error && (
         <p className="mt-8 text-slate-400">No readings yet. Run the simulator or the ESP32 node.</p>
       )}
 
-      {rec && (
+      {view === 'live' && rec && (
         <section className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="col-span-2 rounded-lg bg-slate-800 p-4">
             <div className="text-xs uppercase tracking-wide text-slate-400">Current state</div>
@@ -150,54 +243,97 @@ export default function App() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         <section className="lg:col-span-2">
-          <h2 className="mb-2 text-lg font-semibold">Recent readings</h2>
-          <div className="overflow-x-auto rounded-lg bg-slate-800">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-slate-400">
-                <tr>
-                  {['Time', 'ID', 'Device', 'Signal', 'Gateway', 'Internet', 'DNS', 'Loss', 'Packets'].map((h) => (
-                    <th key={h} className="px-3 py-2">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => diagnose(r.id)}
-                    className={`cursor-pointer border-t border-slate-700 hover:bg-slate-700 ${
-                      selected === r.id ? 'bg-slate-700' : ''
-                    }`}
-                  >
-                    <td className="px-3 py-2">{new Date(r.received_at).toLocaleTimeString()}</td>
-                    <td className="px-3 py-2">{r.id}</td>
-                    <td className="px-3 py-2">{r.device_id}</td>
-                    <td className="px-3 py-2">{fmt(r.rssi, ' dBm')}</td>
-                    <td className="px-3 py-2">{fmt(r.gateway_latency, ' ms')}</td>
-                    <td className="px-3 py-2">{fmt(r.internet_latency, ' ms')}</td>
-                    <td className="px-3 py-2">{fmt(r.dns_time, ' ms')}</td>
-                    <td className="px-3 py-2">{fmt(r.packet_loss, ' %')}</td>
-                    <td className="px-3 py-2">{r.packet_matched ? 'yes' : 'no'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {view === 'live' ? (
+            <>
+              <h2 className="mb-2 text-lg font-semibold">Recent readings</h2>
+              <div className="overflow-x-auto rounded-lg bg-slate-800">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-xs uppercase text-slate-400">
+                    <tr>
+                      {['Time', 'ID', 'Device', 'Signal', 'Gateway', 'Internet', 'DNS', 'Loss', 'Packets'].map((h) => (
+                        <th key={h} className="px-3 py-2">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr
+                        key={r.id}
+                        onClick={() => diagnose(r.id)}
+                        className={`cursor-pointer border-t border-slate-700 hover:bg-slate-700 ${
+                          selected === r.id ? 'bg-slate-700' : ''
+                        }`}
+                      >
+                        <td className="px-3 py-2">{new Date(r.received_at).toLocaleTimeString()}</td>
+                        <td className="px-3 py-2">{r.id}</td>
+                        <td className="px-3 py-2">{r.device_id}</td>
+                        <td className="px-3 py-2">{fmt(r.rssi, ' dBm')}</td>
+                        <td className="px-3 py-2">{fmt(r.gateway_latency, ' ms')}</td>
+                        <td className="px-3 py-2">{fmt(r.internet_latency, ' ms')}</td>
+                        <td className="px-3 py-2">{fmt(r.dns_time, ' ms')}</td>
+                        <td className="px-3 py-2">{fmt(r.packet_loss, ' %')}</td>
+                        <td className="px-3 py-2">{r.packet_matched ? 'yes' : 'no'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="mb-2 text-lg font-semibold">Diagnosis history</h2>
+              <div className="overflow-x-auto rounded-lg bg-slate-800">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-xs uppercase text-slate-400">
+                    <tr>
+                      {['Time', 'Reading', 'Fault', 'Severity', 'Verified', 'Unusual'].map((h) => (
+                        <th key={h} className="px-3 py-2">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((h) => (
+                      <tr
+                        key={h.id}
+                        onClick={() => showStored(h)}
+                        className={`cursor-pointer border-t border-slate-700 hover:bg-slate-700 ${
+                          selected === h.telemetry_id ? 'bg-slate-700' : ''
+                        }`}
+                      >
+                        <td className="px-3 py-2">{new Date(h.created_at).toLocaleTimeString()}</td>
+                        <td className="px-3 py-2">{h.telemetry_id}</td>
+                        <td className="px-3 py-2">{h.fault_label.replaceAll('_', ' ')}</td>
+                        <td className="px-3 py-2"><SeverityBadge severity={h.severity} /></td>
+                        <td className="px-3 py-2">{h.verified ? 'yes' : 'no'}</td>
+                        <td className="px-3 py-2">{h.is_anomaly ? 'yes' : 'no'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {history.length === 0 && (
+                  <p className="p-4 text-sm text-slate-400">
+                    No diagnoses saved yet. Click a reading on the Live tab, or use the demo bar.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </section>
 
         <aside className="rounded-lg bg-slate-800 p-4">
           <h2 className="mb-2 text-lg font-semibold">Diagnosis</h2>
 
-          {!selected && (
+          {!selected && !diagError && (
             <p className="text-sm text-slate-400">
-              Click a reading in the table, or use the Explain button on the state card, to see the
-              explanation from the diagnosis agent.
+              Click a reading or a history row, use the Explain button, or try the demo bar, to see
+              the explanation from the diagnosis agent.
             </p>
           )}
           {diagLoading && <p className="text-sm text-slate-400">Analysing reading {selected}...</p>}
           {diagError && (
             <p className="rounded bg-rose-900/60 p-2 text-sm text-rose-200">
-              Reading {selected}: {diagError}
+              {selected ? `Reading ${selected}: ` : ''}
+              {diagError}
             </p>
           )}
 
@@ -214,11 +350,16 @@ export default function App() {
               </div>
               <div className="mt-1 text-xs text-slate-400">
                 Reading {diag.telemetry_id}, confidence {Math.round(diag.confidence * 100)}%
+                {diag.stored && diag.created_at
+                  ? `, saved ${new Date(diag.created_at).toLocaleString()}`
+                  : ''}
               </div>
               <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-200">
                 {diag.explanation}
               </pre>
-              <div className="mt-3 text-xs text-slate-500">Sources: {diag.sources.join(', ')}</div>
+              {(diag.sources ?? []).length > 0 && (
+                <div className="mt-3 text-xs text-slate-500">Sources: {diag.sources.join(', ')}</div>
+              )}
             </div>
           )}
         </aside>

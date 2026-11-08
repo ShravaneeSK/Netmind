@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, Query
+﻿from fastapi import Depends, FastAPI, Query
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -86,7 +86,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -95,3 +95,9 @@ app.add_middleware(
 from .live_routes import router as live_router  # noqa: E402
 
 app.include_router(live_router)
+
+
+from .demo_routes import router as demo_router  # noqa: E402
+
+app.include_router(demo_router)
+
